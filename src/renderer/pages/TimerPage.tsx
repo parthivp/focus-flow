@@ -1,3 +1,4 @@
+import { Minimize2 } from 'lucide-react';
 import { useTimer } from '../context/TimerContext';
 import { getModeColor, getModeLabel } from '../types';
 import ProgressRing from '../components/ProgressRing';
@@ -12,7 +13,7 @@ function formatTime(seconds: number): string {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
-export default function TimerPage() {
+export default function TimerPage({ onCompactClick }: { onCompactClick?: () => void }) {
   const { mode, status, timeLeft, totalTime } = useTimer();
   const progress = totalTime > 0 ? timeLeft / totalTime : 1;
   const color = getModeColor(mode);
@@ -56,7 +57,32 @@ export default function TimerPage() {
 
       <TimerControls />
       <TaskInput />
-      <SessionCounter />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <SessionCounter />
+        {onCompactClick && (
+          <button
+            onClick={onCompactClick}
+            title="Keep on Top"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '12px 16px',
+              background: 'var(--bg-secondary)',
+              borderRadius: 12,
+              border: '1px solid var(--border)',
+              color: 'var(--text-secondary)',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all var(--transition)',
+            }}
+          >
+            <Minimize2 size={14} />
+            Keep on Top
+          </button>
+        )}
+      </div>
     </div>
   );
 }

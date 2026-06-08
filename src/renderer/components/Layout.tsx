@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Timer, BarChart3, History, Settings } from 'lucide-react';
+import { Timer, BarChart3, History, Settings, Minimize2 } from 'lucide-react';
 
 const navItems = [
   { path: '/', icon: Timer, label: 'Timer' },
@@ -9,7 +9,7 @@ const navItems = [
   { path: '/settings', icon: Settings, label: 'Settings' },
 ];
 
-export default function Layout({ children }: { children: ReactNode }) {
+export default function Layout({ children, onCompactClick }: { children: ReactNode; onCompactClick: () => void }) {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -70,6 +70,28 @@ export default function Layout({ children }: { children: ReactNode }) {
             </button>
           );
         })}
+
+        <div style={{ flex: 1 }} />
+
+        <button
+          onClick={onCompactClick}
+          title="Compact Mode"
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: 12,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'transparent',
+            color: 'var(--text-muted)',
+            transition: 'var(--transition)',
+            marginBottom: 16,
+            WebkitAppRegion: 'no-drag',
+          }}
+        >
+          <Minimize2 size={20} />
+        </button>
       </nav>
 
       <main style={{

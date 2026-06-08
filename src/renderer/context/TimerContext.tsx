@@ -157,6 +157,26 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     moveToNext();
   };
 
+  // Sync timer state to Electron tray
+  useEffect(() => {
+    const m = Math.floor(timeLeft / 60);
+    const s = timeLeft % 60;
+    const formatted = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    window.electronAPI?.app.updateTimerState({ status, mode, timeLeft: formatted });
+  }, [timeLeft, status, mode]);
+
+  // Listen for tray commands
+  useEffect(() => {
+    window.electronAPI?.app.onTrayToggleTimer(() => {
+      if (status === 'idle') start();
+      else if (status === 'running') pause();
+      else if (status === 'paused') resume();
+    });
+    window.electronAPI?.app.onTraySkip(() => {
+      skip();
+    });
+  }, [status]);
+
   return (
     <TimerContext.Provider value={{
       mode, status, timeLeft, totalTime,
