@@ -1,5 +1,6 @@
 import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, screen } from 'electron';
 import * as path from 'path';
+import * as db from './database';
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -11,17 +12,26 @@ const isDev = !app.isPackaged;
 const FULL_SIZE = { width: 900, height: 680, minWidth: 750, minHeight: 550 };
 const COMPACT_SIZE = { width: 320, height: 140, minWidth: 320, minHeight: 140 };
 
-function createTrayIcon(color: string = '#ff6b6b'): Electron.NativeImage {
-  const size = 16;
-  const canvas = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 16 16">
-      <circle cx="8" cy="8" r="7" fill="none" stroke="${color}" stroke-width="2"/>
-      <circle cx="8" cy="8" r="3" fill="${color}"/>
-    </svg>`;
-  return nativeImage.createFromBuffer(
-    Buffer.from(canvas),
-    { width: size, height: size }
-  );
+function getTrayIcon(): Electron.NativeImage {
+  const iconPath = isDev
+    ? path.join(__dirname, '../../build/tray-icon.png')
+    : path.join(process.resourcesPath, 'build/tray-icon.png');
+  try {
+    return nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+  } catch {
+    return nativeImage.createEmpty();
+  }
+}
+
+function getAppIcon(): Electron.NativeImage {
+  const iconPath = isDev
+    ? path.join(__dirname, '../../build/icon.png')
+    : path.join(process.resourcesPath, 'build/icon.png');
+  try {
+    return nativeImage.createFromPath(iconPath);
+  } catch {
+    return nativeImage.createEmpty();
+  }
 }
 
 function updateTray() {
@@ -44,10 +54,8 @@ function updateTray() {
   tray.setToolTip(`Focus Flow ${statusDot} ${timerState.timeLeft} — ${statusLabels[timerState.status]}`);
 
   try {
-    tray.setImage(createTrayIcon(color));
-  } catch {
-    // SVG tray icons may not work on all platforms; fallback handled below
-  }
+    tray.setImage(getTrayIcon());
+  } catch {}
 
   const contextMenu = Menu.buildFromTemplate([
     {
@@ -94,6 +102,7 @@ function updateTray() {
 function createWindow() {
   mainWindow = new BrowserWindow({
     ...FULL_SIZE,
+    icon: getAppIcon(),
     frame: false,
     titleBarStyle: 'hidden',
     titleBarOverlay: {
@@ -133,12 +142,7 @@ function createWindow() {
 }
 
 function createTray() {
-  let icon: Electron.NativeImage;
-  try {
-    icon = createTrayIcon('#ff6b6b');
-  } catch {
-    icon = nativeImage.createEmpty();
-  }
+  const icon = getTrayIcon();
   tray = new Tray(icon);
   tray.setToolTip('Focus Flow');
 
@@ -198,6 +202,7 @@ function switchToFull() {
 }
 
 app.whenReady().then(() => {
+  db.initDatabase();
   createWindow();
   createTray();
 });
@@ -249,4 +254,62 @@ ipcMain.handle('get-compact-state', () => {
 ipcMain.on('timer-state-update', (_, state: { status: string; mode: string; timeLeft: string }) => {
   timerState = state;
   updateTray();
+});
+
+// --- Database IPC ---
+
+ipcMain.handle('db-start-session', (_, taskName: string, mode: string, plannedDuration: number) => {
+  return db.startSession(taskName, mode, plannedDuration);
+});
+
+ipcMain.handle('db-update-progress', (_, id: number, elapsedSeconds: number) => {
+  db.updateSessionProgress(id, elapsedSeconds);
+});
+
+ipcMain.handle('db-complete-session', (_, id: number, elapsedSeconds: number) => {
+  db.completeSession(id, elapsedSeconds);
+});
+
+ipcMain.handle('db-get-sessions', (_, startDate?: string, endDate?: string) => {
+  return db.getSessions(startDate, endDate);
+});
+
+ipcMain.handle('db-get-stats', (_, startDate: string, endDate: string) => {
+  return db.getStats(startDate, endDate);
+});
+
+ipcMain.handle('db-get-daily-stats', (_, startDate: string, endDate: string) => {
+  return db.getDailyStats(startDate, endDate);
+});
+
+ipcMain.handle('db-get-hourly-stats', () => {
+  return db.getHourlyStats();
+});
+
+ipcMain.handle('db-get-task-breakdown', (_, startDate?: string, endDate?: string) => {
+  return db.getTaskBreakdown(startDate, endDate);
+});
+
+ipcMain.handle('db-get-streak', () => {
+  return db.getStreak();
+});
+
+ipcMain.handle('db-get-settings', () => {
+  return db.getAllSettings();
+});
+
+ipcMain.handle('db-set-setting', (_, key: string, value: string) => {
+  db.setSetting(key, value);
+});
+
+ipcMain.handle('db-export', (_, format: 'csv' | 'json') => {
+  return db.exportAllData(format);
+});
+
+ipcMain.handle('db-get-path', () => {
+  return db.getDbPath();
+});
+
+app.on('before-quit', () => {
+  db.closeDatabase();
 });

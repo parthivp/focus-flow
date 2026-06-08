@@ -16,16 +16,28 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
 
   useEffect(() => {
-    const saved = localStorage.getItem('focus-flow-settings');
-    if (saved) {
-      setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(saved) });
+    async function load() {
+      if (window.electronAPI?.db) {
+        const stored = await window.electronAPI.db.getSettings();
+        if (stored.settings) {
+          setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(stored.settings) });
+        }
+      } else {
+        const saved = localStorage.getItem('focus-flow-settings');
+        if (saved) setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(saved) });
+      }
     }
+    load();
   }, []);
 
   const updateSettings = (updates: Partial<Settings>) => {
     setSettings(prev => {
       const next = { ...prev, ...updates };
-      localStorage.setItem('focus-flow-settings', JSON.stringify(next));
+      if (window.electronAPI?.db) {
+        window.electronAPI.db.setSetting('settings', JSON.stringify(next));
+      } else {
+        localStorage.setItem('focus-flow-settings', JSON.stringify(next));
+      }
       return next;
     });
   };

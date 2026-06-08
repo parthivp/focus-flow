@@ -17,12 +17,15 @@
   "author": "parthivp",
   "license": "MIT",
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.0",
     "concurrently": "^8.2.0",
     "electron": "^31.0.0",
     "electron-builder": "^24.13.0",
+    "png-to-ico": "^3.0.1",
+    "sharp": "^0.34.5",
     "typescript": "^5.5.0",
     "vite": "^5.4.0"
   },
@@ -38,18 +41,23 @@
   "build": {
     "appId": "com.focusflow.app",
     "productName": "Focus Flow",
+    "icon": "build/icon.png",
     "files": [
       "dist/**/*",
+      "build/icon*.png",
+      "build/tray-icon*.png",
       "package.json"
     ],
     "directories": {
       "output": "release"
     },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/icon.ico"
     },
     "mac": {
-      "target": "dmg"
+      "target": "dmg",
+      "icon": "build/icon.png"
     },
     "linux": {
       "target": "AppImage"

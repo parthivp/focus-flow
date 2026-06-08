@@ -1,10 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, CartesianGrid,
 } from 'recharts';
 import { BarChart3, Flame, Clock, Target, TrendingUp } from 'lucide-react';
-import { useTimer } from '../context/TimerContext';
 import { useSettings } from '../context/SettingsContext';
 
 const COLORS = ['#ff6b6b', '#4ecdc4', '#a78bfa', '#feca57', '#48dbfb', '#ff9ff3', '#54a0ff'];
@@ -42,78 +41,69 @@ function StatCard({ icon: Icon, label, value, sub, color }: {
   );
 }
 
+function formatMinutes(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.round((seconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
 export default function AnalyticsPage() {
-  const { sessions } = useTimer();
   const { settings } = useSettings();
-
   const today = new Date().toISOString().split('T')[0];
+  const [todayStats, setTodayStats] = useState<any>(null);
+  const [allTimeStats, setAllTimeStats] = useState<any>(null);
+  const [weeklyData, setWeeklyData] = useState<any[]>([]);
+  const [taskBreakdown, setTaskBreakdown] = useState<any[]>([]);
+  const [hourlyData, setHourlyData] = useState<any[]>([]);
+  const [streak, setStreak] = useState(0);
 
-  const stats = useMemo(() => {
-    const workSessions = sessions.filter(s => s.mode === 'work');
-    const todaySessions = workSessions.filter(s => s.date === today);
-    const totalMinutes = workSessions.reduce((sum, s) => sum + s.duration / 60, 0);
-    const todayMinutes = todaySessions.reduce((sum, s) => sum + s.duration / 60, 0);
+  useEffect(() => {
+    async function load() {
+      if (!window.electronAPI?.db) return;
 
-    const dateSet = new Set(workSessions.map(s => s.date));
-    const dates = Array.from(dateSet).sort();
-    let streak = 0;
-    const d = new Date();
-    for (let i = 0; i < 365; i++) {
-      const dateStr = d.toISOString().split('T')[0];
-      if (dateSet.has(dateStr)) {
-        streak++;
-        d.setDate(d.getDate() - 1);
-      } else {
-        break;
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+      const startDate = sevenDaysAgo.toISOString().split('T')[0];
+
+      const [ts, ats, daily, tasks, hourly, str] = await Promise.all([
+        window.electronAPI.db.getStats(today, today),
+        window.electronAPI.db.getStats('2000-01-01', '2099-12-31'),
+        window.electronAPI.db.getDailyStats(startDate, today),
+        window.electronAPI.db.getTaskBreakdown(),
+        window.electronAPI.db.getHourlyStats(),
+        window.electronAPI.db.getStreak(),
+      ]);
+
+      setTodayStats(ts);
+      setAllTimeStats(ats);
+      setStreak(str);
+      setTaskBreakdown(tasks.slice(0, 7).map((t: any) => ({
+        name: t.task_name,
+        count: t.count,
+        minutes: Math.round(t.total_seconds / 60),
+      })));
+      setHourlyData(hourly.map((h: any) => ({ hour: h.hour, count: h.count })));
+
+      // Build weekly data with all 7 days
+      const dailyMap = new Map(daily.map((d: any) => [d.date, d]));
+      const week = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split('T')[0];
+        const dayName = d.toLocaleDateString('en', { weekday: 'short' });
+        const row = dailyMap.get(dateStr) as any;
+        week.push({
+          day: dayName,
+          pomodoros: row?.completed_pomodoros || 0,
+          minutes: row ? Math.round(row.work_seconds / 60) : 0,
+        });
       }
+      setWeeklyData(week);
     }
-
-    return {
-      todayPomodoros: todaySessions.length,
-      todayMinutes: Math.round(todayMinutes),
-      totalPomodoros: workSessions.length,
-      totalHours: Math.round(totalMinutes / 60 * 10) / 10,
-      streak,
-      uniqueDays: dates.length,
-    };
-  }, [sessions, today]);
-
-  const weeklyData = useMemo(() => {
-    const data: { day: string; pomodoros: number; minutes: number }[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
-      const dayName = d.toLocaleDateString('en', { weekday: 'short' });
-      const daySessions = sessions.filter(s => s.date === dateStr && s.mode === 'work');
-      data.push({
-        day: dayName,
-        pomodoros: daySessions.length,
-        minutes: Math.round(daySessions.reduce((sum, s) => sum + s.duration / 60, 0)),
-      });
-    }
-    return data;
-  }, [sessions]);
-
-  const taskBreakdown = useMemo(() => {
-    const map = new Map<string, number>();
-    sessions.filter(s => s.mode === 'work').forEach(s => {
-      map.set(s.taskName, (map.get(s.taskName) || 0) + 1);
-    });
-    return Array.from(map.entries())
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 7);
-  }, [sessions]);
-
-  const hourlyData = useMemo(() => {
-    const hours = Array.from({ length: 24 }, (_, i) => ({ hour: i, count: 0 }));
-    sessions.filter(s => s.mode === 'work').forEach(s => {
-      const h = new Date(s.completedAt).getHours();
-      hours[h].count++;
-    });
-    return hours.filter(h => h.count > 0);
-  }, [sessions]);
+    load();
+  }, [today]);
 
   const tooltipStyle = {
     contentStyle: {
@@ -133,10 +123,32 @@ export default function AnalyticsPage() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 32 }}>
-        <StatCard icon={Target} label="Today's pomodoros" value={stats.todayPomodoros} sub={`Goal: ${settings.dailyGoal}`} color="#ff6b6b" />
-        <StatCard icon={Clock} label="Today's focus" value={`${stats.todayMinutes}m`} color="#4ecdc4" />
-        <StatCard icon={Flame} label="Current streak" value={`${stats.streak}d`} color="#feca57" />
-        <StatCard icon={TrendingUp} label="Total focus" value={`${stats.totalHours}h`} sub={`${stats.totalPomodoros} sessions`} color="#a78bfa" />
+        <StatCard
+          icon={Target}
+          label="Today's pomodoros"
+          value={todayStats?.completed_pomodoros || 0}
+          sub={`Goal: ${settings.dailyGoal}`}
+          color="#ff6b6b"
+        />
+        <StatCard
+          icon={Clock}
+          label="Today's focus"
+          value={formatMinutes(todayStats?.total_work_seconds || 0)}
+          color="#4ecdc4"
+        />
+        <StatCard
+          icon={Flame}
+          label="Current streak"
+          value={`${streak}d`}
+          color="#feca57"
+        />
+        <StatCard
+          icon={TrendingUp}
+          label="Total focus"
+          value={formatMinutes(allTimeStats?.total_work_seconds || 0)}
+          sub={`${allTimeStats?.completed_pomodoros || 0} sessions`}
+          color="#a78bfa"
+        />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
@@ -175,8 +187,8 @@ export default function AnalyticsPage() {
           ) : (
             <ResponsiveContainer width="100%" height={200}>
               <PieChart>
-                <Pie data={taskBreakdown} dataKey="count" nameKey="name" cx="50%" cy="50%" outerRadius={80} innerRadius={45}>
-                  {taskBreakdown.map((_, i) => (
+                <Pie data={taskBreakdown} dataKey="minutes" nameKey="name" cx="50%" cy="50%" outerRadius={80} innerRadius={45}>
+                  {taskBreakdown.map((_: any, i: number) => (
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
                 </Pie>
@@ -205,7 +217,7 @@ export default function AnalyticsPage() {
                 tick={{ fontSize: 11, fill: '#8888aa' }}
                 axisLine={false}
                 tickLine={false}
-                tickFormatter={h => `${h}:00`}
+                tickFormatter={(h: number) => `${h}:00`}
               />
               <YAxis tick={{ fontSize: 11, fill: '#8888aa' }} axisLine={false} tickLine={false} />
               <Tooltip {...tooltipStyle} />

@@ -1,21 +1,44 @@
-import { useMemo, useState } from 'react';
-import { History, Download, Calendar } from 'lucide-react';
-import { useTimer } from '../context/TimerContext';
-import { getModeColor, getModeLabel } from '../types';
+import { useMemo, useState, useEffect } from 'react';
+import { History, Download, Calendar, Database } from 'lucide-react';
+import { getModeColor, getModeLabel, TimerMode } from '../types';
+
+interface SessionRow {
+  id: number;
+  task_name: string;
+  mode: string;
+  planned_duration: number;
+  actual_duration: number;
+  completed: number;
+  started_at: string;
+  completed_at: string | null;
+  date: string;
+}
 
 export default function HistoryPage() {
-  const { sessions } = useTimer();
+  const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [filter, setFilter] = useState<'all' | 'work' | 'break'>('all');
+  const [dbPath, setDbPath] = useState('');
+
+  useEffect(() => {
+    async function load() {
+      if (window.electronAPI?.db) {
+        const rows = await window.electronAPI.db.getSessions();
+        setSessions(rows);
+        const p = await window.electronAPI.db.getDbPath();
+        setDbPath(p);
+      }
+    }
+    load();
+  }, []);
 
   const filteredSessions = useMemo(() => {
-    let filtered = [...sessions].reverse();
-    if (filter === 'work') filtered = filtered.filter(s => s.mode === 'work');
-    if (filter === 'break') filtered = filtered.filter(s => s.mode !== 'work');
-    return filtered;
+    if (filter === 'work') return sessions.filter(s => s.mode === 'work');
+    if (filter === 'break') return sessions.filter(s => s.mode !== 'work');
+    return sessions;
   }, [sessions, filter]);
 
   const grouped = useMemo(() => {
-    const groups = new Map<string, typeof filteredSessions>();
+    const groups = new Map<string, SessionRow[]>();
     filteredSessions.forEach(s => {
       const existing = groups.get(s.date) || [];
       existing.push(s);
@@ -24,37 +47,32 @@ export default function HistoryPage() {
     return Array.from(groups.entries());
   }, [filteredSessions]);
 
-  const exportData = (format: 'csv' | 'json') => {
+  const exportData = async (format: 'csv' | 'json') => {
     let content: string;
-    let mime: string;
-    let ext: string;
-
-    if (format === 'json') {
-      content = JSON.stringify(sessions, null, 2);
-      mime = 'application/json';
-      ext = 'json';
+    if (window.electronAPI?.db) {
+      content = await window.electronAPI.db.exportData(format);
     } else {
-      const headers = 'Task,Mode,Duration (min),Completed At,Date\n';
-      const rows = sessions.map(s =>
-        `"${s.taskName}","${s.mode}",${s.duration / 60},"${s.completedAt}","${s.date}"`
-      ).join('\n');
-      content = headers + rows;
-      mime = 'text/csv';
-      ext = 'csv';
+      content = format === 'json' ? JSON.stringify(sessions, null, 2) : '';
     }
-
-    const blob = new Blob([content], { type: mime });
+    const blob = new Blob([content], { type: format === 'json' ? 'application/json' : 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `focus-flow-export.${ext}`;
+    a.download = `focus-flow-export.${format}`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
+  function formatDuration(seconds: number): string {
+    if (seconds < 60) return `${seconds}s`;
+    const m = Math.round(seconds / 60);
+    if (m >= 60) return `${Math.floor(m / 60)}h ${m % 60}m`;
+    return `${m}m`;
+  }
+
   return (
     <div style={{ maxWidth: 600, margin: '0 auto' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <History size={24} color="var(--text-muted)" />
           <h1 style={{ fontSize: 24, fontWeight: 700 }}>History</h1>
@@ -84,6 +102,18 @@ export default function HistoryPage() {
           </button>
         </div>
       </div>
+
+      {dbPath && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '8px 12px', borderRadius: 8, marginBottom: 16,
+          background: 'var(--bg-card)', border: '1px solid var(--border)',
+          fontSize: 11, color: 'var(--text-muted)',
+        }}>
+          <Database size={12} />
+          Stored at: {dbPath}
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--bg-secondary)', borderRadius: 8, padding: 4 }}>
         {(['all', 'work', 'break'] as const).map(f => (
@@ -122,36 +152,40 @@ export default function HistoryPage() {
                 })}
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {items.map((s, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 12,
-                      padding: '10px 16px', borderRadius: 8,
-                      background: 'var(--bg-card)', border: '1px solid var(--border)',
-                    }}
-                  >
-                    <div style={{
-                      width: 8, height: 8, borderRadius: '50%',
-                      background: getModeColor(s.mode),
-                      boxShadow: `0 0 6px ${getModeColor(s.mode)}66`,
-                    }} />
-                    <span style={{ flex: 1, fontSize: 14 }}>{s.taskName}</span>
-                    <span style={{
-                      fontSize: 12, color: getModeColor(s.mode), fontWeight: 600,
-                      padding: '2px 8px', borderRadius: 4,
-                      background: getModeColor(s.mode) + '15',
-                    }}>
-                      {getModeLabel(s.mode)}
-                    </span>
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                      {s.duration / 60}m
-                    </span>
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                      {new Date(s.completedAt).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                ))}
+                {items.map((s) => {
+                  const modeColor = getModeColor(s.mode as TimerMode);
+                  return (
+                    <div
+                      key={s.id}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 12,
+                        padding: '10px 16px', borderRadius: 8,
+                        background: 'var(--bg-card)', border: '1px solid var(--border)',
+                      }}
+                    >
+                      <div style={{
+                        width: 8, height: 8, borderRadius: '50%',
+                        background: modeColor,
+                        boxShadow: `0 0 6px ${modeColor}66`,
+                      }} />
+                      <span style={{ flex: 1, fontSize: 14 }}>{s.task_name}</span>
+                      <span style={{
+                        fontSize: 12, color: modeColor, fontWeight: 600,
+                        padding: '2px 8px', borderRadius: 4,
+                        background: modeColor + '15',
+                      }}>
+                        {getModeLabel(s.mode as TimerMode)}
+                      </span>
+                      <span style={{ fontSize: 12, color: s.completed ? 'var(--text-secondary)' : '#feca57', fontWeight: 600 }}>
+                        {formatDuration(s.actual_duration)}
+                        {!s.completed && ' ⚡'}
+                      </span>
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        {new Date(s.started_at).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))}

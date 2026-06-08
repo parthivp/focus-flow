@@ -23,4 +23,26 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.on('toggle-compact', () => callback());
     },
   },
+  db: {
+    startSession: (taskName: string, mode: string, plannedDuration: number) =>
+      ipcRenderer.invoke('db-start-session', taskName, mode, plannedDuration),
+    updateProgress: (id: number, elapsedSeconds: number) =>
+      ipcRenderer.invoke('db-update-progress', id, elapsedSeconds),
+    completeSession: (id: number, elapsedSeconds: number) =>
+      ipcRenderer.invoke('db-complete-session', id, elapsedSeconds),
+    getSessions: (startDate?: string, endDate?: string) =>
+      ipcRenderer.invoke('db-get-sessions', startDate, endDate),
+    getStats: (startDate: string, endDate: string) =>
+      ipcRenderer.invoke('db-get-stats', startDate, endDate),
+    getDailyStats: (startDate: string, endDate: string) =>
+      ipcRenderer.invoke('db-get-daily-stats', startDate, endDate),
+    getHourlyStats: () => ipcRenderer.invoke('db-get-hourly-stats'),
+    getTaskBreakdown: (startDate?: string, endDate?: string) =>
+      ipcRenderer.invoke('db-get-task-breakdown', startDate, endDate),
+    getStreak: () => ipcRenderer.invoke('db-get-streak'),
+    getSettings: () => ipcRenderer.invoke('db-get-settings'),
+    setSetting: (key: string, value: string) => ipcRenderer.invoke('db-set-setting', key, value),
+    exportData: (format: 'csv' | 'json') => ipcRenderer.invoke('db-export', format),
+    getDbPath: () => ipcRenderer.invoke('db-get-path'),
+  },
 });
