@@ -107,12 +107,14 @@ export default function AnalyticsPage() {
 
   const tooltipStyle = {
     contentStyle: {
-      background: 'var(--bg-card)',
-      border: '1px solid var(--border)',
+      background: '#16213e',
+      border: '1px solid #333360',
       borderRadius: 8,
       fontSize: 12,
-      color: 'var(--text-primary)',
+      color: '#eeeeff',
     },
+    labelStyle: { color: '#a0a0c0' },
+    itemStyle: { color: '#eeeeff' },
   };
 
   return (
@@ -163,8 +165,8 @@ export default function AnalyticsPage() {
           </h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={weeklyData}>
-              <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#8888aa' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: '#8888aa' }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#a0a0c0' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: '#a0a0c0' }} axisLine={false} tickLine={false} />
               <Tooltip {...tooltipStyle} />
               <Bar dataKey="pomodoros" fill="#ff6b6b" radius={[4, 4, 0, 0]} />
             </BarChart>
@@ -211,15 +213,15 @@ export default function AnalyticsPage() {
           </h3>
           <ResponsiveContainer width="100%" height={180}>
             <LineChart data={hourlyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#333360" />
               <XAxis
                 dataKey="hour"
-                tick={{ fontSize: 11, fill: '#8888aa' }}
+                tick={{ fontSize: 11, fill: '#a0a0c0' }}
                 axisLine={false}
                 tickLine={false}
                 tickFormatter={(h: number) => `${h}:00`}
               />
-              <YAxis tick={{ fontSize: 11, fill: '#8888aa' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: '#a0a0c0' }} axisLine={false} tickLine={false} />
               <Tooltip {...tooltipStyle} />
               <Line type="monotone" dataKey="count" stroke="#48dbfb" strokeWidth={2} dot={{ fill: '#48dbfb', r: 4 }} />
             </LineChart>

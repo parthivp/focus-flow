@@ -40,6 +40,7 @@ export default function Layout({ children, onCompactClick }: { children: ReactNo
           justifyContent: 'center',
           fontWeight: 800,
           fontSize: 18,
+          color: '#fff',
           marginBottom: 20,
           WebkitAppRegion: 'no-drag',
         }}>
