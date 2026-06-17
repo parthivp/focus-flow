@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useRef, useCallback, useEffect, ReactNode } from 'react';
 import { TimerMode, TimerStatus, PomodoroSession } from '../types';
 import { useSettings } from './SettingsContext';
+import { playSound } from '../utils/sounds';
 
 interface TimerContextType {
   mode: TimerMode;
@@ -161,6 +162,11 @@ export function TimerProvider({ children }: { children: ReactNode }) {
 
   const moveToNext = useCallback(async () => {
     await completeDbSession();
+
+    // Play sound alert
+    if (settings.soundEnabled) {
+      try { playSound(settings.soundType); } catch {}
+    }
 
     if (mode === 'work') {
       const newCount = sessionsCompleted + 1;

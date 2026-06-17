@@ -1,6 +1,6 @@
 {
   "name": "focus-flow",
-  "version": "1.0.0",
+  "version": "1.3.0",
   "description": "A beautiful Pomodoro timer desktop app with analytics and reports",
   "main": "dist/main/main.js",
   "scripts": {

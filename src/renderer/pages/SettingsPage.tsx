@@ -1,5 +1,7 @@
 import { useSettings } from '../context/SettingsContext';
-import { Settings as SettingsIcon } from 'lucide-react';
+import { Settings as SettingsIcon, Volume2, Play } from 'lucide-react';
+import { SOUNDS, previewSound } from '../utils/sounds';
+import { SoundChoice } from '../types';
 
 function NumberInput({ label, value, onChange, min, max, suffix }: {
   label: string; value: number; onChange: (v: number) => void;
@@ -111,6 +113,69 @@ export default function SettingsPage() {
           <Toggle label="Sound alerts" value={settings.soundEnabled} onChange={v => updateSettings({ soundEnabled: v })} />
           <Toggle label="Desktop notifications" value={settings.notificationsEnabled} onChange={v => updateSettings({ notificationsEnabled: v })} />
         </Section>
+
+        {settings.soundEnabled && (
+          <Section title="Notification Sound">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {(Object.keys(SOUNDS) as SoundChoice[]).map(key => {
+                const sound = SOUNDS[key];
+                const selected = settings.soundType === key;
+                return (
+                  <div
+                    key={key}
+                    onClick={() => updateSettings({ soundType: key })}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
+                      background: selected ? 'rgba(255,107,107,0.12)' : 'transparent',
+                      border: selected ? '1.5px solid var(--accent-work)' : '1.5px solid transparent',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <div style={{
+                      width: 18, height: 18, borderRadius: '50%',
+                      border: selected ? '5px solid var(--accent-work)' : '2px solid var(--border)',
+                      background: selected ? 'var(--accent-work)' : 'transparent',
+                      flexShrink: 0,
+                      transition: 'all 0.15s ease',
+                    }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{sound.label}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{sound.description}</div>
+                    </div>
+                    <button
+                      onClick={e => { e.stopPropagation(); previewSound(key); }}
+                      style={{
+                        width: 32, height: 32, borderRadius: 8,
+                        background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: 'pointer', color: 'var(--text-secondary)',
+                        transition: 'background 0.15s ease',
+                      }}
+                      title={`Preview ${sound.label}`}
+                    >
+                      <Play size={14} fill="currentColor" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16, padding: '8px 0' }}>
+              <Volume2 size={16} color="var(--text-muted)" />
+              <input
+                type="range"
+                min={10} max={100} step={5}
+                value={settings.soundVolume}
+                onChange={e => updateSettings({ soundVolume: Number(e.target.value) })}
+                style={{ flex: 1, accentColor: 'var(--accent-work)' }}
+              />
+              <span style={{ fontSize: 13, color: 'var(--text-muted)', minWidth: 36, textAlign: 'right' }}>
+                {settings.soundVolume}%
+              </span>
+            </div>
+          </Section>
+        )}
       </div>
     </div>
   );

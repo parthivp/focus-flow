@@ -2,6 +2,8 @@ export type TimerMode = 'work' | 'shortBreak' | 'longBreak';
 
 export type TimerStatus = 'idle' | 'running' | 'paused';
 
+export type SoundChoice = 'radar' | 'beacon' | 'chime' | 'bell' | 'alarm' | 'digital';
+
 export interface Settings {
   workDuration: number;
   shortBreakDuration: number;
@@ -13,6 +15,8 @@ export interface Settings {
   alwaysOnTop: boolean;
   soundEnabled: boolean;
   notificationsEnabled: boolean;
+  soundType: SoundChoice;
+  soundVolume: number;
 }
 
 export interface PomodoroSession {
@@ -44,6 +48,8 @@ export const DEFAULT_SETTINGS: Settings = {
   alwaysOnTop: false,
   soundEnabled: true,
   notificationsEnabled: true,
+  soundType: 'alarm' as SoundChoice,
+  soundVolume: 80,
 };
 
 export function getModeColor(mode: TimerMode): string {
