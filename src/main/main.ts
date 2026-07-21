@@ -10,7 +10,7 @@ let timerState = { status: 'idle', mode: 'work', timeLeft: '25:00' };
 const isDev = !app.isPackaged;
 
 const FULL_SIZE = { width: 900, height: 680, minWidth: 750, minHeight: 550 };
-const COMPACT_SIZE = { width: 320, height: 140, minWidth: 320, minHeight: 140 };
+const COMPACT_SIZE = { width: 250, height: 64, minWidth: 250, minHeight: 64 };
 
 function getTrayIcon(): Electron.NativeImage {
   const iconPath = isDev
